@@ -1,0 +1,15 @@
+####### Finemapping & Colocalization ######
+####### Author: Sam Ghatan             ######
+####### Date: 06/12/2024            ######
+
+------ Main scripts for running finemapping and coloc ------
+
+Here contain the main scripts for running finemapping and coloc after regions have been defined and LD matrices have been generated.
+
+#1 Finemap files - submit_susieR.sh susie_finemap.R
+
+#2 Coloc files - submit_susie_coloc susie_coloc_beta.2.1.R
+
+#3 Multi-ethnic coloc (single cv) - submit_multi_ancestry_coloc.sh multi_ancestry_coloc.R
+
+#4 Script to merge result files - 01_merge_coloc_results.sh
