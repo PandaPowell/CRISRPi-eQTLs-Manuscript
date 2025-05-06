@@ -1,0 +1,26 @@
+# Post-Colocalization Analysis
+**Author:** Sam Ghatan  
+**Last updated:** March 20, 2025
+
+This directory contains all code used for downstream analyses following fine-mapping and colocalization of GWAS loci.
+
+### Overview
+The pipeline performs the following steps:
+
+1. **Gene target identification**
+   - Intersects fine-mapped variants with:
+     - CRISPRi spacer sequences to identify **cGenes**
+     - eQTL sentinel variants to identify **eGenes**
+
+2. **Comparative analyses**
+   - Compares cGenes and eGenes in terms of:
+     - Genomic and regulatory properties
+     - Overlaps with gold-standard gene sets
+     - Associations with CRE (cis-regulatory element) features
+     - Hi-C-based gene targets
+
+### Notes
+- Scripts are modular and grouped by analysis stage.
+- Data input assumes completed fine-mapping and coloc analyses.
+
+For details on usage, see individual script headers or contact the author.
