@@ -300,8 +300,9 @@ calculate_enrichment <- function(gene_list_a,gene_list_b,gene_sample) {
 
 # Loop through all cis-genes and cell-types and calculate correlations
 sting.seq.df = data.frame()
+plot_list = list()
 
-for (gene in c("GFI1B", "HHEX","IKZF1","NFE2", "RUNX1")){
+for (gene in c("GFI1B", "HHEX", "IKZF1", "NFE2", "RUNX1")) {
   
   print(gene)
   
@@ -310,32 +311,68 @@ for (gene in c("GFI1B", "HHEX","IKZF1","NFE2", "RUNX1")){
   # Filter eQTL associations to cis-gene
   cis.gene.trans = all_res_trans[all_res_trans$phenotype_id_cis == gene,]
   
-  if(nrow(cis.gene.trans)<1){
+  if (nrow(cis.gene.trans) < 1) {
     print("No significant trans-eQTLs")
     next
   }
   
   gene_df = data.frame()
   
-  for (eqtl in unique(cis.gene.trans$Cell.type)){
+  for (eqtl in unique(cis.gene.trans$Cell.type)) {
     
     cell.type.trans = cis.gene.trans[cis.gene.trans$Cell.type == eqtl,]
     
     # Flip trans-associations to decreasing allele
-    if(is.na(unique(cell.type.trans$slope)) == F && unique(cell.type.trans$slope) > 0){
+    if (eqtl == "LCL" || !is.na(unique(cell.type.trans$slope)) && unique(cell.type.trans$slope) > 0) {
       print("Flipping effect sizes")
-      cell.type.trans$b = cis.gene.trans$b*-1
+      cell.type.trans$b = cell.type.trans$b * -1
     }
     
-    all <- merge(trans_g[,c("Gene","Log2 Fold Change","P-value")], cell.type.trans, by.x='Gene', by.y='phenotype_id_trans')
+    all <- merge(trans_g[, c("Gene", "Log2 Fold Change", "P-value")], 
+                 cell.type.trans, by.x = 'Gene', by.y = 'phenotype_id_trans')
+    
     # Calculate enrichment
     result <- calculate_enrichment(unique(cell.type.trans$phenotype_id_trans), 
                                    unique(trans_g$Gene), 
                                    unique(resample_results$gene_short_name))
-
+    
+    # Correlation calculations
     r <- round(cor(all$`Log2 Fold Change`, all$b), 4)
     p <- cor.test(all$`Log2 Fold Change`, all$b)$p.value
-    conf.int = cor.test(all$`Log2 Fold Change`, all$b, conf.int = T)$conf.int
+    conf.int = cor.test(all$`Log2 Fold Change`, all$b, conf.int = TRUE)$conf.int
+    
+    # Counting points in each quadrant
+    quadrant_counts <- all %>%
+      mutate(quadrant = case_when(
+        `Log2 Fold Change` > 0 & b > 0 ~ "Positive-Positive",
+        `Log2 Fold Change` > 0 & b < 0 ~ "Positive-Negative",
+        `Log2 Fold Change` < 0 & b > 0 ~ "Negative-Positive",
+        `Log2 Fold Change` < 0 & b < 0 ~ "Negative-Negative"
+      )) %>%
+      count(quadrant)
+    
+    # Combined binomial test for Positive-Positive and Negative-Negative
+    combined_count <- sum(quadrant_counts %>% 
+                            filter(quadrant %in% c("Positive-Positive", "Negative-Negative")) %>% 
+                            pull(n))
+    total_count <- sum(quadrant_counts$n)
+    combined_test <- binom.test(combined_count, total_count, p = 0.5, alternative = "greater")
+    
+    # Generate the plot and add to list
+    p1 <- ggplot(data = all, aes(x = `Log2 Fold Change`, y = b)) + 
+      geom_point(color = "black", alpha = 0.6) +
+      geom_hline(yintercept = 0, linetype = "dotted", color = "gray") +  
+      geom_vline(xintercept = 0, linetype = "dotted", color = "gray") +  
+      annotate("text", x = min(all$`Log2 Fold Change`)+0.2, y = max(all$b)+0.02, label = paste0("P = ", formatC(combined_test$p.value, format = "e", digits = 1)), 
+               size = 4, hjust = 0.5, family = "sans") +
+      xlab("Trans-cGene LogFC") +
+      ylab("Trans-eGene beta") +
+      ggtitle(paste("Gene:", gene, "- Cell Type:", eqtl)) +
+      theme_cowplot()
+    
+    plot_list[[paste(gene, eqtl, sep = "_")]] <- p1
+    
+    # Store the results in the data frame
     cell_df = data.frame(cell.type = eqtl,
                          cor = r,
                          cor_pval = p,
@@ -353,8 +390,12 @@ for (gene in c("GFI1B", "HHEX","IKZF1","NFE2", "RUNX1")){
   
   gene_df$cis_gene = gene
   sting.seq.df = rbind(sting.seq.df, gene_df)
-  
 }
+
+# Save all plots to one figure
+svg("plots/supp_figs/trans_genes_cor_plots.svg", width = 12, height = 12)
+plot_grid(plotlist = plot_list, ncol = 2)
+dev.off()
 
 sting.seq.df$study = "morris"
 
@@ -362,6 +403,7 @@ sting.seq.df$study = "morris"
 # Load morris cis-genes with trans hits
 
 gasperini.df = data.frame()
+plot_list = list()
 
 # Loop through cis-genes with trans-effects
 for (gene in gas_cis_genes){
@@ -413,6 +455,12 @@ for (gene in gas_cis_genes){
         
       }
       
+      if(eqtl == "LCL"){
+        print("Flipping eQTL associations to negative cis-effects")
+        cis.gene.trans.2$slope <- cis.gene.trans.2$slope * -1
+        cis.gene.trans.2$b <- -cis.gene.trans.2$b * -1
+      }
+      
       all <- merge(trans_g[,c("hgnc_symbol","log2fc","pvalue")], cis.gene.trans.2, by.x='hgnc_symbol', by.y='phenotype_id_trans')
         
         if(nrow(all) < 10){
@@ -427,6 +475,38 @@ for (gene in gas_cis_genes){
         r <- round(cor(all$log2fc, all$b), 4)
         p <- cor.test(all$log2fc, all$b)$p.value
         conf.int = cor.test(all$log2fc, all$b, conf.int = T)$conf.int
+        
+        # Counting points in each quadrant
+        quadrant_counts <- all %>%
+          mutate(quadrant = case_when(
+            log2fc > 0 & b > 0 ~ "Positive-Positive",
+            log2fc > 0 & b < 0 ~ "Positive-Negative",
+            log2fc < 0 & b > 0 ~ "Negative-Positive",
+            log2fc < 0 & b < 0 ~ "Negative-Negative"
+          )) %>%
+          count(quadrant)
+        
+        # Combined binomial test for Positive-Positive and Negative-Negative
+        combined_count <- sum(quadrant_counts %>% 
+                                filter(quadrant %in% c("Positive-Positive", "Negative-Negative")) %>% 
+                                pull(n))
+        total_count <- sum(quadrant_counts$n)
+        combined_test <- binom.test(combined_count, total_count, p = 0.5, alternative = "greater")
+        
+        # Generate the plot and add to list
+        p1 <- ggplot(data = all, aes(x = log2fc, y = b)) + 
+          geom_point(color = "black", alpha = 0.6) +
+          geom_hline(yintercept = 0, linetype = "dotted", color = "gray") +  
+          geom_vline(xintercept = 0, linetype = "dotted", color = "gray") +  
+          annotate("text", x = min(all$log2fc)+0.2, y = max(all$b)+0.02, label = paste0("P = ", formatC(combined_test$p.value, format = "e", digits = 1)), 
+                   size = 4, hjust = 0.5, family = "sans") +
+          xlab("Trans-cGene LogFC") +
+          ylab("Trans-eGene beta") +
+          ggtitle(paste("Gene:", gene, "- Cell Type:", eqtl)) +
+          theme_cowplot()
+        
+        plot_list[[paste(gene, eqtl, sep = "_")]] <- p1
+        
         cell_df = data.frame(cell.type = eqtl,
                              cor = r,
                              cor_pval = p,
@@ -451,6 +531,11 @@ for (gene in gas_cis_genes){
   }
   
 }
+
+# Save all plots to one figure
+svg("plots/supp_figs/trans_genes_cor_plots_gas.svg", width = 16, height = 16)
+plot_grid(plotlist = plot_list, ncol = 3)
+dev.off()
 
 gasperini.df$study = "gasperini"
 
