@@ -1,0 +1,63 @@
+# R and RStudio files
+.Rhistory
+.RData
+.Rproj.user
+*.Rproj
+.ipynb_checkpoints/
+
+# Data files (exclude large datasets)
+*.tsv
+*.csv
+*.txt.gz
+*.parquet
+*.bed
+*.bim
+*.fam
+*.rds
+*.ht/
+*.mt/
+*.zip
+*.tar.gz
+
+# BLAST databases
+*.nhr
+*.nin
+*.nsq
+
+# Output and results directories
+results/
+data/
+output/
+figures/
+plots/
+Reports/
+*.out
+*.log
+*.err
+
+# Temporary files
+temp.sh
+*temp*.R
+*temp*.py
+*.tmp
+*~
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Jupyter checkpoints
+*checkpoint*.R
+*checkpoint*.py
