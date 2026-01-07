@@ -1,0 +1,42 @@
+# R and RStudio files
+.Rhistory
+.RData
+.Rproj.user
+*.Rproj
+
+# Data files (exclude large datasets)
+*.tsv
+*.csv
+*.txt.gz
+*.parquet
+*.bed
+*.bim
+*.fam
+*.ld
+*.bk
+*.rds
+*.zip
+
+# Output and results directories
+results/
+data/
+Reports/
+*.out
+*.log
+
+# Temporary files
+temp.sh
+*.tmp
+*~
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# IDE files
+.vscode/
+.idea/
